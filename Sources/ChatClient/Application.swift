@@ -48,8 +48,9 @@ struct ChatClientApp: AsyncParsableCommand {
         let config = AppConfiguration.default
 
         // Setup dependencies
-        let output = ConsoleOutputWriter()
         let input = ConsoleInputReader()
+        let output = ConsoleOutputWriter()
+        await output.setInputReader(input)
         let presenter = UIPresenter(output: output)
 
         // Show welcome

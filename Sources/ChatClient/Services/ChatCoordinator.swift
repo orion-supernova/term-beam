@@ -12,6 +12,7 @@ actor ChatCoordinator {
     private let input: InputReaderProtocol
     private let config: AppConfiguration
     private let serverURL: String
+    private let globalCommandHandler: GlobalCommandHandler
 
     private var currentSession: ChatSessionService?
 
@@ -31,6 +32,7 @@ actor ChatCoordinator {
         self.presenter = presenter
         self.input = input
         self.config = config
+        self.globalCommandHandler = GlobalCommandHandler(presenter: presenter)
     }
 
     func start() async throws {
@@ -68,7 +70,10 @@ actor ChatCoordinator {
         }
 
         // Get user choice (create or join)
-        let choice = await getUserRoomChoice()
+        guard let choice = await getUserRoomChoice() else {
+            // User wants to exit
+            Foundation.exit(0)
+        }
 
         // Get room ID and password (but NOT username yet)
         let roomId: String
@@ -85,11 +90,15 @@ actor ChatCoordinator {
         let username: String
         let joinResponse: JoinRoomResponse
         do {
-            (username, joinResponse) = try await joinWithUsernameRetry(
+            guard let result = try await joinWithUsernameRetry(
                 choice: choice,
                 roomId: roomId,
                 password: password
-            )
+            ) else {
+                // User wants to exit
+                Foundation.exit(0)
+            }
+            (username, joinResponse) = result
         } catch {
             await presenter.showError("Failed to join room: \(error.localizedDescription)")
             // Don't throw - return and let outer loop retry
@@ -114,13 +123,22 @@ actor ChatCoordinator {
         }
     }
 
-    private func getUserRoomChoice() async -> String {
+    private func getUserRoomChoice() async -> String? {
         while true {
-            let input = await input.readLine(
+            let userInput = await input.readLine(
                 prompt: "Do you want to (c)reate a new room or (j)oin an existing one? [c/j]: "
             )
-            let choice = input.lowercased()
 
+            // Check for global commands first
+            let (wasGlobal, shouldExit) = await globalCommandHandler.handleIfGlobal(userInput)
+            if wasGlobal {
+                if shouldExit {
+                    return nil // Signal to exit
+                }
+                continue // Command handled, ask again
+            }
+
+            let choice = userInput.lowercased()
             if choice.hasPrefix("c") || choice.hasPrefix("j") {
                 return choice
             }
@@ -170,15 +188,25 @@ actor ChatCoordinator {
         }
     }
 
-    private func getUsername(isRetry: Bool = false) async -> String {
+    private func getUsername(isRetry: Bool = false) async -> String? {
         while true {
             let prompt = isRetry
                 ? "That username is taken. Enter a different username for this room: "
                 : "Enter your username for this room: "
 
-            let username = await input.readLine(prompt: prompt)
-            if !username.isEmpty {
-                return username
+            let userInput = await input.readLine(prompt: prompt)
+
+            // Check for global commands first
+            let (wasGlobal, shouldExit) = await globalCommandHandler.handleIfGlobal(userInput)
+            if wasGlobal {
+                if shouldExit {
+                    return nil // Signal to exit
+                }
+                continue // Command handled, ask again
+            }
+
+            if !userInput.isEmpty {
+                return userInput
             }
             await presenter.showError("Username cannot be empty")
         }
@@ -188,12 +216,15 @@ actor ChatCoordinator {
         choice: String,
         roomId: String,
         password: String?
-    ) async throws -> (username: String, response: JoinRoomResponse) {
+    ) async throws -> (username: String, response: JoinRoomResponse)? {
         var isRetry = false
 
         while true {
             // Ask for username
-            let username = await getUsername(isRetry: isRetry)
+            guard let username = await getUsername(isRetry: isRetry) else {
+                // User wants to exit
+                return nil
+            }
 
             // Try to join
             do {
@@ -236,6 +267,7 @@ actor ChatCoordinator {
             roomService: roomService,
             presenter: presenter,
             input: input,
+            globalCommandHandler: globalCommandHandler,
             roomId: roomId,
             userId: userId,
             username: username,

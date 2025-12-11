@@ -124,13 +124,19 @@ actor UIPresenter {
 
     func showHelp() async {
         await output.writeLine("\n📚 Available Commands:")
-        await output.writeLine("  /help           - Show this help message")
-        await output.writeLine("  /exit           - Leave current room and join another")
-        await output.writeLine("  /bye            - Exit application (works globally)")
-        await output.writeLine("  /users          - List users in current room")
-        await output.writeLine("  /rooms          - List all available rooms")
-        await output.writeLine("  /info           - Show current room information")
-        await output.writeLine("  /history        - Show recent message history")
+        await output.writeLine("")
+        await output.writeLine("  Global Commands (work anywhere):")
+        await output.writeLine("    /help         - Show this help message")
+        await output.writeLine("    /bye          - Exit application")
+        await output.writeLine("    /quit         - Exit application (alias)")
+        await output.writeLine("")
+        await output.writeLine("  In-Room Commands:")
+        await output.writeLine("    /exit         - Leave current room and join another")
+        await output.writeLine("    /leave        - Leave current room (alias)")
+        await output.writeLine("    /users        - List users in current room")
+        await output.writeLine("    /rooms        - List all available rooms")
+        await output.writeLine("    /info         - Show current room information")
+        await output.writeLine("    /history      - Show recent message history")
         await output.writeLine("")
     }
 

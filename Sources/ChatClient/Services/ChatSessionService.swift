@@ -9,6 +9,7 @@ actor ChatSessionService {
     private let roomService: RoomService
     private let presenter: UIPresenter
     private let input: InputReaderProtocol
+    private let globalCommandHandler: GlobalCommandHandler
 
     private let roomId: String
     private let userId: String
@@ -23,6 +24,7 @@ actor ChatSessionService {
         roomService: RoomService,
         presenter: UIPresenter,
         input: InputReaderProtocol,
+        globalCommandHandler: GlobalCommandHandler,
         roomId: String,
         userId: String,
         username: String,
@@ -32,6 +34,7 @@ actor ChatSessionService {
         self.roomService = roomService
         self.presenter = presenter
         self.input = input
+        self.globalCommandHandler = globalCommandHandler
         self.roomId = roomId
         self.userId = userId
         self.username = username
@@ -102,8 +105,19 @@ actor ChatSessionService {
             guard !line.isEmpty else { continue }
 
             if line.hasPrefix("/") {
-                let shouldExit = await handleCommand(line)
-                if shouldExit {
+                // Check for global commands first
+                let (wasGlobal, shouldExit) = await globalCommandHandler.handleIfGlobal(line)
+                if wasGlobal {
+                    if shouldExit {
+                        await cleanup()
+                        Foundation.exit(0)
+                    }
+                    continue
+                }
+
+                // Handle room-specific commands
+                let shouldLeaveRoom = await handleCommand(line)
+                if shouldLeaveRoom {
                     break
                 }
             } else {
@@ -125,15 +139,6 @@ actor ChatSessionService {
         let cmd = parts.first?.lowercased() ?? ""
 
         switch cmd {
-        case "help":
-            await presenter.showHelp()
-            return false
-
-        case "bye", "quit":
-            await presenter.showGoodbye()
-            await cleanup()
-            return true
-
         case "exit", "leave":
             await cleanup()
             return true
