@@ -12,6 +12,7 @@ A modern, terminal-based chat client written in Swift for connecting to WebSocke
 - **Secure Input**: Password fields hidden during entry
 - **Auto-reconnect**: Graceful server connection handling with retry logic
 - **Health Checks**: Server availability monitoring before connection
+- **Smart Username Handling**: Automatically prompts for a different username if already taken
 
 ## Requirements
 
@@ -57,17 +58,14 @@ swift run ChatClient
 chat-client
 
 # Connect to a specific server
-chat-client --server localhost:8080 --username alice
-
-# Join a specific room
-chat-client --server localhost:8080 --username alice --room room-id-123
+chat-client --server localhost:8080
 ```
 
 ### Command-Line Options
 
 - `-s, --server`: Server URL (e.g., `localhost:8080`, `chat.example.com`)
-- `-u, --username`: Your username
-- `-r, --room`: Room ID to join (optional)
+
+**Note**: Username is now requested during the flow for better room-specific context.
 
 ### Interactive Mode
 
@@ -75,7 +73,11 @@ When you run the client, you'll be guided through:
 
 1. **Server Connection**: Enter server address or use default `localhost:8080`
 2. **Room Selection**: Choose to create a new room or join an existing one
-3. **Chat Interface**: Send messages and use commands
+3. **Room Details**: Enter room ID/name and password (if required)
+4. **Username**: Enter your username for the selected room
+5. **Chat Interface**: Send messages and use commands
+
+**Note**: Username is requested AFTER room selection to prevent conflicts and provide better context.
 
 ## In-Chat Commands
 
@@ -111,10 +113,7 @@ Using default: http://localhost:8080
 🔍 Checking server connection...
 ✅ Server is online
 
-💬 Welcome, @alice!
-Type /help to see available commands
-
-📋 Fetching available rooms...
+ℹ️  Fetching available rooms...
 
 💬 Available rooms:
   🔓 [2 users] General Chat
@@ -122,8 +121,11 @@ Type /help to see available commands
 
 Do you want to (c)reate a new room or (j)oin an existing one? [c/j]: j
 Enter room ID: abc123
+Enter room password (if any):
 
-🚪 Joining room...
+Enter your username for this room: alice
+
+ℹ️  Joining room as @alice...
 ✅ Joined 'General Chat'
 👥 Users already in room:
   [15:30:21] → bob is here
@@ -233,6 +235,12 @@ This client is designed to work with WebSocket-enabled chat servers that follow 
 
 - Enter the password when prompted (input will be hidden)
 - Leave password field empty for rooms without passwords
+
+### Username Already Taken
+
+- If a username is already in use in the room, you'll be prompted to enter a different one
+- Simply enter a new username and the client will retry automatically
+- No need to restart or go back to room selection
 
 ## License
 

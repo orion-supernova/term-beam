@@ -1,0 +1,137 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build for Apple Silicon
+        run: swift build -c release --arch arm64
+
+      - name: Build for Intel
+        run: swift build -c release --arch x86_64
+
+      - name: Create universal binary
+        run: |
+          mkdir -p .build/universal
+          lipo -create \
+            .build/arm64-apple-macosx/release/term-beam \
+            .build/x86_64-apple-macosx/release/term-beam \
+            -output .build/universal/term-beam
+
+      - name: Create tarball
+        run: |
+          mkdir -p term-beam-${{ steps.version.outputs.VERSION }}
+          cp .build/universal/term-beam term-beam-${{ steps.version.outputs.VERSION }}/
+          tar -czf term-beam-${{ steps.version.outputs.VERSION }}.tar.gz term-beam-${{ steps.version.outputs.VERSION }}
+
+      - name: Generate checksum
+        run: shasum -a 256 term-beam-${{ steps.version.outputs.VERSION }}.tar.gz > term-beam-${{ steps.version.outputs.VERSION }}.tar.gz.sha256
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: term-beam-macos
+          path: |
+            term-beam-${{ steps.version.outputs.VERSION }}.tar.gz
+            term-beam-${{ steps.version.outputs.VERSION }}.tar.gz.sha256
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build for Linux
+        run: swift build -c release
+
+      - name: Create tarball
+        run: |
+          mkdir -p term-beam-${{ steps.version.outputs.VERSION }}-linux
+          cp .build/release/term-beam term-beam-${{ steps.version.outputs.VERSION }}-linux/
+          tar -czf term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz term-beam-${{ steps.version.outputs.VERSION }}-linux
+
+      - name: Generate checksum
+        run: shasum -a 256 term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz > term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz.sha256
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: term-beam-linux
+          path: |
+            term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz
+            term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz.sha256
+
+  release:
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Set version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: term-beam-macos
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: term-beam-linux
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            term-beam-${{ steps.version.outputs.VERSION }}.tar.gz
+            term-beam-${{ steps.version.outputs.VERSION }}.tar.gz.sha256
+            term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz
+            term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz.sha256
+          body: |
+            ## term-beam v${{ steps.version.outputs.VERSION }}
+
+            Terminal chat client - beam messages across the network
+
+            ### Installation
+
+            **macOS via Homebrew:**
+            ```bash
+            brew install yourusername/tap/term-beam
+            ```
+
+            **macOS Manual:**
+            ```bash
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}/term-beam-${{ steps.version.outputs.VERSION }}.tar.gz | tar xz
+            sudo mv term-beam-${{ steps.version.outputs.VERSION }}/term-beam /usr/local/bin/
+            ```
+
+            **Linux:**
+            ```bash
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}/term-beam-${{ steps.version.outputs.VERSION }}-linux.tar.gz | tar xz
+            sudo mv term-beam-${{ steps.version.outputs.VERSION }}-linux/term-beam /usr/local/bin/
+            ```
+
+            ### Usage
+            ```bash
+            term-beam
+            term-beam --server your-server.com:3169
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
