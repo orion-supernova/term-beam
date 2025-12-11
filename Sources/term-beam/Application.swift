@@ -34,10 +34,10 @@ private func setupGlobalSignalHandler() {
 // MARK: - Main Application Entry Point
 
 @main
-struct ChatClientApp: AsyncParsableCommand {
+struct TermBeamApp: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "chat-client",
-        abstract: "Terminal chat client for chat servers",
+        commandName: "term-beam",
+        abstract: "Terminal chat client - beam messages across the network",
         version: "1.0.0"
     )
 

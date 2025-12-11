@@ -13,7 +13,8 @@ actor UIPresenter {
 
     func showWelcome() async {
         await output.writeLine("╔════════════════════════════════════════╗")
-        await output.writeLine("║      Terminal Chat Client v1.0        ║")
+        await output.writeLine("║          term-beam v1.0               ║")
+        await output.writeLine("║   Beam messages across the network    ║")
         await output.writeLine("╚════════════════════════════════════════╝")
         await output.writeLine("")
     }
