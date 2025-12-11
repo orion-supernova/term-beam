@@ -112,6 +112,7 @@ Each class/actor has ONE reason to change:
 | **Error Handling** | Generic errors, swallowed exceptions | Typed errors with proper propagation |
 | **Connection Issues** | No reconnection logic | Robust retry with user options |
 | **Input Validation** | Minimal validation | Comprehensive validation with errors |
+| **User Flow** | Username asked before room selection | Username asked AFTER room selection (prevents conflicts) |
 
 ## Improvements
 
@@ -159,6 +160,21 @@ let client = ChatAPIClient(baseURL: url)
 init(apiClient: ChatAPIClientProtocol) {
     self.apiClient = apiClient
 }
+```
+
+### 6. User Flow & Error Recovery
+```swift
+// Before: Username first, exits on conflict
+1. Enter username
+2. List rooms
+3. Join room → Error if username exists → EXIT
+
+// After: Username last with auto-retry
+1. List rooms
+2. Select room & password
+3. Enter username for THIS room
+4. If username exists → auto-retry with new username
+5. Join room successfully
 ```
 
 ## Code Quality Metrics

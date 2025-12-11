@@ -39,36 +39,7 @@ actor RoomService {
         try await apiClient.getRoomInfo(roomId: roomId)
     }
 
-    func createAndJoinRoom(username: String) async throws -> (roomId: String, response: JoinRoomResponse) {
-        let name = await input.readLine(prompt: "Enter room name: ")
-        guard !name.isEmpty else {
-            await presenter.showError("Room name cannot be empty")
-            throw ChatError.invalidInput("Room name cannot be empty")
-        }
-
-        let password = await input.readSecureLine(prompt: "Enter password (leave empty for no password): ")
-        let finalPassword = password.isEmpty ? nil : password
-
-        await presenter.showInfo("Creating room...")
-        let room = try await createRoom(name: name, password: finalPassword)
-        await presenter.showSuccess("Room created: \(room.name)")
-
-        let joinResponse = try await joinRoom(roomId: room.id, username: username, password: finalPassword)
-        return (room.id, joinResponse)
-    }
-
-    func joinExistingRoom(username: String) async throws -> (roomId: String, response: JoinRoomResponse) {
-        let roomId = await input.readLine(prompt: "Enter room ID: ")
-        guard !roomId.isEmpty else {
-            await presenter.showError("Room ID cannot be empty")
-            throw ChatError.invalidInput("Room ID cannot be empty")
-        }
-
-        let password = await input.readSecureLine(prompt: "Enter room password (if any): ")
-        let finalPassword = password.isEmpty ? nil : password
-
-        await presenter.showInfo("Joining room...")
-        let joinResponse = try await joinRoom(roomId: roomId, username: username, password: finalPassword)
-        return (roomId, joinResponse)
+    func getMessageHistory(roomId: String, limit: Int?) async throws -> [Message] {
+        try await apiClient.getMessageHistory(roomId: roomId, limit: limit)
     }
 }

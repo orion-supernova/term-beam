@@ -100,6 +100,21 @@ actor HTTPChatAPIClient: ChatAPIClientProtocol {
         return try JSONDecoder().decode(RoomResponse.self, from: data)
     }
 
+    func getMessageHistory(roomId: String, limit: Int? = nil) async throws -> [Message] {
+        var urlString = "\(baseURL)/api/rooms/\(roomId)/messages"
+        if let limit = limit {
+            urlString += "?limit=\(limit)"
+        }
+
+        guard let url = URL(string: urlString) else {
+            throw ChatError.invalidURL
+        }
+
+        let (data, response) = try await session.data(from: url)
+        try validateResponse(response)
+        return try JSONDecoder().decode([Message].self, from: data)
+    }
+
     // MARK: - Private Helpers
 
     private func validateResponse(_ response: URLResponse, data: Data? = nil) throws {

@@ -11,6 +11,15 @@ actor WebSocketClient: WebSocketClientProtocol {
     private var webSocket: WebSocket?
     private var _isConnected: Bool = false
 
+    // Reconnection properties
+    private var shouldReconnect: Bool = false
+    private var reconnectAttempts: Int = 0
+    private let maxReconnectAttempts: Int = 3
+    private var currentRoomId: String?
+    private var currentUserId: String?
+    private var storedOnMessage: (@Sendable (Message) -> Void)?
+    private var storedOnDisconnect: (@Sendable () -> Void)?
+
     var isConnected: Bool {
         get async { _isConnected }
     }
@@ -21,6 +30,28 @@ actor WebSocketClient: WebSocketClientProtocol {
     }
 
     func connect(
+        roomId: String,
+        userId: String,
+        onMessage: @escaping @Sendable (Message) -> Void,
+        onDisconnect: @escaping @Sendable () -> Void
+    ) async throws {
+        // Store connection details for reconnection
+        currentRoomId = roomId
+        currentUserId = userId
+        storedOnMessage = onMessage
+        storedOnDisconnect = onDisconnect
+        shouldReconnect = true
+        reconnectAttempts = 0
+
+        try await attemptConnection(
+            roomId: roomId,
+            userId: userId,
+            onMessage: onMessage,
+            onDisconnect: onDisconnect
+        )
+    }
+
+    private func attemptConnection(
         roomId: String,
         userId: String,
         onMessage: @escaping @Sendable (Message) -> Void,
@@ -57,9 +88,14 @@ actor WebSocketClient: WebSocketClientProtocol {
     }
 
     func disconnect() async {
+        shouldReconnect = false // Don't reconnect on manual disconnect
         _isConnected = false
         try? await webSocket?.close(code: .normalClosure)
         webSocket = nil
+        currentRoomId = nil
+        currentUserId = nil
+        storedOnMessage = nil
+        storedOnDisconnect = nil
     }
 
     // MARK: - Private Helpers
@@ -74,13 +110,28 @@ actor WebSocketClient: WebSocketClientProtocol {
         }
 
         ws.onText { _, text in
+            // Ignore ping messages from server heartbeat
+            if text == "ping" {
+                return
+            }
             Self.parseAndHandleMessage(text: text, onMessage: onMessage)
         }
 
         ws.onClose.whenComplete { _ in
             Task {
                 await self.handleDisconnection()
-                onDisconnect()
+
+                // Attempt reconnection if enabled and not at max attempts
+                let shouldReconnect = await self.shouldReconnect
+                let reconnectAttempts = await self.reconnectAttempts
+                let maxAttempts = await self.maxReconnectAttempts
+
+                if shouldReconnect && reconnectAttempts < maxAttempts {
+                    await self.attemptReconnection()
+                } else {
+                    // Give up and notify disconnect
+                    onDisconnect()
+                }
             }
         }
     }
@@ -93,6 +144,34 @@ actor WebSocketClient: WebSocketClientProtocol {
     private func handleDisconnection() {
         self._isConnected = false
         self.webSocket = nil
+    }
+
+    private func attemptReconnection() async {
+        guard let roomId = currentRoomId,
+              let userId = currentUserId,
+              let onMessage = storedOnMessage,
+              let onDisconnect = storedOnDisconnect else {
+            return
+        }
+
+        reconnectAttempts += 1
+        print("⚠️  Connection lost. Reconnecting... (attempt \(reconnectAttempts)/\(maxReconnectAttempts))")
+
+        do {
+            try await Task.sleep(for: .seconds(2)) // Wait before reconnecting
+            try await attemptConnection(
+                roomId: roomId,
+                userId: userId,
+                onMessage: onMessage,
+                onDisconnect: onDisconnect
+            )
+            // Reset attempts on successful reconnection
+            reconnectAttempts = 0
+            print("✅ Reconnected successfully!")
+        } catch {
+            print("❌ Reconnection attempt \(reconnectAttempts) failed: \(error.localizedDescription)")
+            // The onClose handler will be called again and retry if attempts remain
+        }
     }
 
     private static func parseAndHandleMessage(

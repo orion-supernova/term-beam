@@ -44,12 +44,6 @@ struct ChatClientApp: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Server URL")
     var server: String?
 
-    @Option(name: .shortAndLong, help: "Your username")
-    var username: String?
-
-    @Option(name: .shortAndLong, help: "Room ID to join (optional)")
-    var room: String?
-
     func run() async throws {
         let config = AppConfiguration.default
 
@@ -78,12 +72,6 @@ struct ChatClientApp: AsyncParsableCommand {
 
         await presenter.showServerOnline()
 
-        // Get username
-        let finalUsername = try await getUsername(
-            input: input,
-            presenter: presenter
-        )
-
         // Create API client with final URL
         let apiClient = HTTPChatAPIClient(baseURL: finalServerURL)
 
@@ -100,6 +88,7 @@ struct ChatClientApp: AsyncParsableCommand {
         )
 
         // Setup coordinator
+        // Note: Username will be asked per room in the coordinator
         let coordinator = ChatCoordinator(
             serverURL: finalServerURL,
             apiClient: apiClient,
@@ -114,8 +103,8 @@ struct ChatClientApp: AsyncParsableCommand {
         await GlobalCleanupHandler.shared.setCoordinator(coordinator)
         setupGlobalSignalHandler()
 
-        // Start the application
-        try await coordinator.start(username: finalUsername)
+        // Start the application (username will be asked inside)
+        try await coordinator.start()
 
         // Cleanup on normal exit
         await GlobalCleanupHandler.shared.clearCoordinator()
@@ -192,22 +181,5 @@ struct ChatClientApp: AsyncParsableCommand {
                 }
             }
         }
-    }
-
-    private func getUsername(
-        input: InputReaderProtocol,
-        presenter: UIPresenter
-    ) async throws -> String {
-        if let username = self.username, !username.isEmpty {
-            return username
-        }
-
-        let username = await input.readLine(prompt: "Enter your username: ")
-        guard !username.isEmpty else {
-            await presenter.showError("Username cannot be empty")
-            throw ExitCode.failure
-        }
-
-        return username
     }
 }

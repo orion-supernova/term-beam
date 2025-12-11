@@ -10,4 +10,5 @@ protocol ChatAPIClientProtocol: Sendable {
     func leaveRoom(roomId: String, userId: String) async throws
     func getRoomUsers(roomId: String) async throws -> [UserResponse]
     func getRoomInfo(roomId: String) async throws -> RoomResponse
+    func getMessageHistory(roomId: String, limit: Int?) async throws -> [Message]
 }

@@ -53,25 +53,20 @@ swift run ChatClient
 ```
 You'll be prompted for:
 1. Server URL (default: localhost:8080)
-2. Username
-3. Room selection (create or join)
+2. Room selection (create or join)
+3. Room details (ID/name and password)
+4. Username for the selected room
 
 ### With Command-Line Arguments
 ```bash
 # Specify server
 swift run ChatClient --server chat.example.com
 
-# Specify username
-swift run ChatClient --username alice
-
-# Both
-swift run ChatClient --server localhost:8080 --username bob
+# Short option
+swift run ChatClient -s localhost:8080
 ```
 
-### Short Options
-```bash
-swift run ChatClient -s localhost:8080 -u alice
-```
+**Note**: Username is now requested during the interactive flow for better room-specific context.
 
 ## Troubleshooting
 
@@ -224,12 +219,7 @@ Using default: http://localhost:8080
 🔍 Checking server connection...
 ✅ Server is online
 
-Enter your username: alice
-
-💬 Welcome, @alice!
-Type /help to see available commands
-
-📋 Fetching available rooms...
+ℹ️  Fetching available rooms...
 
 💬 Available rooms:
   🔓 [2 users] General Chat
@@ -237,8 +227,11 @@ Type /help to see available commands
 
 Do you want to (c)reate a new room or (j)oin an existing one? [c/j]: j
 Enter room ID: abc123
+Enter room password (if any):
 
-🚪 Joining room...
+Enter your username for this room: alice
+
+ℹ️  Joining room as @alice...
 ✅ Joined 'General Chat'
 👥 Users already in room:
   [15:30:21] → bob is here

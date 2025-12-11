@@ -4,26 +4,29 @@ import Foundation
 
 actor ConsoleInputReader: InputReaderProtocol {
     func readLine(prompt: String) async -> String {
-        await withCheckedContinuation { continuation in
+        // Use Task.detached to avoid actor isolation issues with synchronous I/O
+        await Task.detached {
             print(prompt, terminator: "")
             fflush(stdout)
-            let input = Swift.readLine() ?? ""
-            continuation.resume(returning: input)
-        }
+
+            // Read directly from stdin synchronously
+            guard let line = Swift.readLine() else {
+                return ""
+            }
+            return line
+        }.value
     }
 
     func readSecureLine(prompt: String) async -> String {
-        await withCheckedContinuation { continuation in
+        await Task.detached {
             print(prompt, terminator: "")
             fflush(stdout)
 
             var buf = [Int8](repeating: 0, count: 8192)
             guard let ptr = readpassphrase("", &buf, buf.count, 0) else {
-                continuation.resume(returning: "")
-                return
+                return ""
             }
-            let password = String(cString: ptr)
-            continuation.resume(returning: password)
-        }
+            return String(cString: ptr)
+        }.value
     }
 }

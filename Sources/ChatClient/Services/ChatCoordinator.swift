@@ -33,11 +33,17 @@ actor ChatCoordinator {
         self.config = config
     }
 
-    func start(username: String) async throws {
-        await presenter.showWelcomeUser(username: username)
-
+    func start() async throws {
         while true {
-            try await showRoomSelectionAndJoin(username: username)
+            do {
+                try await showRoomSelectionAndJoin()
+            } catch {
+                // Don't exit - show error and let user try again
+                await presenter.showError("An error occurred: \(error.localizedDescription)")
+                await presenter.showInfo("Let's try again...")
+                try await Task.sleep(for: .seconds(1))
+                // Loop continues, user can try again
+            }
         }
     }
 
@@ -47,37 +53,65 @@ actor ChatCoordinator {
         }
     }
 
-    private func showRoomSelectionAndJoin(username: String) async throws {
+    private func showRoomSelectionAndJoin() async throws {
         // Fetch and display rooms
         await presenter.showInfo("Fetching available rooms...")
 
+        let rooms: [RoomResponse]
         do {
-            let rooms = try await roomService.listRooms()
+            rooms = try await roomService.listRooms()
             await presenter.showRooms(rooms)
         } catch {
             await presenter.showError("Failed to fetch rooms: \(error.localizedDescription)")
-            throw error
+            // Don't throw - return and let outer loop retry
+            return
         }
 
-        // Get user choice
+        // Get user choice (create or join)
         let choice = await getUserRoomChoice()
 
-        // Create or join room
-        let (roomId, joinResponse) = try await handleRoomChoice(
-            choice: choice,
-            username: username
-        )
+        // Get room ID and password (but NOT username yet)
+        let roomId: String
+        let password: String?
+        do {
+            (roomId, password) = try await getRoomIdAndPassword(choice: choice)
+        } catch {
+            await presenter.showError("Failed to get room details: \(error.localizedDescription)")
+            // Don't throw - return and let outer loop retry
+            return
+        }
+
+        // Try to join with username (retry if username exists)
+        let username: String
+        let joinResponse: JoinRoomResponse
+        do {
+            (username, joinResponse) = try await joinWithUsernameRetry(
+                choice: choice,
+                roomId: roomId,
+                password: password
+            )
+        } catch {
+            await presenter.showError("Failed to join room: \(error.localizedDescription)")
+            // Don't throw - return and let outer loop retry
+            return
+        }
 
         // Show room info
         await presenter.showJoinedRoom(room: joinResponse, currentUsername: username)
 
         // Start chat session
-        try await startChatSession(
-            roomId: roomId,
-            userId: joinResponse.userId,
-            username: username,
-            roomName: joinResponse.room.name
-        )
+        do {
+            try await startChatSession(
+                roomId: roomId,
+                userId: joinResponse.userId,
+                username: username,
+                roomName: joinResponse.room.name
+            )
+        } catch {
+            await presenter.showError("Chat session error: \(error.localizedDescription)")
+            // Don't throw - return and let outer loop retry
+            return
+        }
     }
 
     private func getUserRoomChoice() async -> String {
@@ -95,14 +129,97 @@ actor ChatCoordinator {
         }
     }
 
-    private func handleRoomChoice(
-        choice: String,
-        username: String
-    ) async throws -> (roomId: String, response: JoinRoomResponse) {
+    private func getRoomIdAndPassword(choice: String) async throws -> (roomId: String, password: String?) {
         if choice.hasPrefix("c") {
-            return try await roomService.createAndJoinRoom(username: username)
+            // Creating a new room
+            let name = await input.readLine(prompt: "Enter room name: ")
+            guard !name.isEmpty else {
+                await presenter.showError("Room name cannot be empty")
+                throw ChatError.invalidInput("Room name cannot be empty")
+            }
+
+            let password = await input.readSecureLine(prompt: "Enter password (leave empty for no password): ")
+            let finalPassword = password.isEmpty ? nil : password
+
+            await presenter.showInfo("Creating room...")
+            let room = try await roomService.createRoom(name: name, password: finalPassword)
+            await presenter.showSuccess("Room created: \(room.name)")
+
+            return (room.id, finalPassword)
         } else {
-            return try await roomService.joinExistingRoom(username: username)
+            // Joining existing room
+            let roomId = await input.readLine(prompt: "Enter room ID: ")
+            guard !roomId.isEmpty else {
+                await presenter.showError("Room ID cannot be empty")
+                throw ChatError.invalidInput("Room ID cannot be empty")
+            }
+
+            // Verify room exists BEFORE asking for password
+            await presenter.showInfo("Verifying room...")
+            do {
+                _ = try await roomService.getRoomInfo(roomId: roomId)
+            } catch {
+                await presenter.showError("Room not found or invalid room ID")
+                throw ChatError.serverError("Invalid room ID")
+            }
+
+            let password = await input.readSecureLine(prompt: "Enter room password (if any): ")
+            let finalPassword = password.isEmpty ? nil : password
+
+            return (roomId, finalPassword)
+        }
+    }
+
+    private func getUsername(isRetry: Bool = false) async -> String {
+        while true {
+            let prompt = isRetry
+                ? "That username is taken. Enter a different username for this room: "
+                : "Enter your username for this room: "
+
+            let username = await input.readLine(prompt: prompt)
+            if !username.isEmpty {
+                return username
+            }
+            await presenter.showError("Username cannot be empty")
+        }
+    }
+
+    private func joinWithUsernameRetry(
+        choice: String,
+        roomId: String,
+        password: String?
+    ) async throws -> (username: String, response: JoinRoomResponse) {
+        var isRetry = false
+
+        while true {
+            // Ask for username
+            let username = await getUsername(isRetry: isRetry)
+
+            // Try to join
+            do {
+                await presenter.showInfo("Joining room as @\(username)...")
+                let joinResponse = try await roomService.joinRoom(
+                    roomId: roomId,
+                    username: username,
+                    password: password
+                )
+                return (username, joinResponse)
+            } catch let error as ChatError {
+                // Check if it's a username conflict error
+                if case .serverError(let message) = error,
+                   message.lowercased().contains("username") &&
+                   message.lowercased().contains("exists") {
+                    // Username already exists, try again
+                    await presenter.showError("Username '\(username)' is already taken in this room.")
+                    isRetry = true
+                    continue
+                }
+                // Other errors should be thrown
+                throw error
+            } catch {
+                // Non-ChatError exceptions
+                throw error
+            }
         }
     }
 

@@ -39,6 +39,9 @@ actor ChatSessionService {
     }
 
     func start() async throws {
+        // Fetch and display message history before connecting
+        await loadMessageHistory()
+
         try await webSocketClient.connect(
             roomId: roomId,
             userId: userId,
@@ -56,6 +59,24 @@ actor ChatSessionService {
 
         // Handle user input
         await handleUserInput()
+    }
+
+    private func loadMessageHistory() async {
+        do {
+            let messages = try await roomService.getMessageHistory(roomId: roomId, limit: 50)
+            if !messages.isEmpty {
+                await presenter.showInfo("Loading recent messages...")
+                for message in messages {
+                    addToHistory(message)
+                    await presenter.showMessage(message, currentUsername: username)
+                }
+                await presenter.showInfo("End of message history")
+                print("") // Empty line for separation
+            }
+        } catch {
+            // If history endpoint doesn't exist or fails, just continue
+            // This is not a critical error
+        }
     }
 
     func stop() async {
@@ -77,7 +98,7 @@ actor ChatSessionService {
 
     private func handleUserInput() async {
         while isActive {
-            let line = await input.readLine(prompt: "")
+            let line = await input.readLine(prompt: "\(username) > ")
             guard !line.isEmpty else { continue }
 
             if line.hasPrefix("/") {
