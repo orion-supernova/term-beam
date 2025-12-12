@@ -5,10 +5,10 @@ import Foundation
 /// Single Responsibility: Connection management
 
 actor ConnectionService {
-    let apiClient: ChatAPIClientProtocol
+    let apiClient: any ChatAPIClientProtocol
     private let presenter: UIPresenter
 
-    init(apiClient: ChatAPIClientProtocol, presenter: UIPresenter) {
+    init(apiClient: any ChatAPIClientProtocol, presenter: UIPresenter) {
         self.apiClient = apiClient
         self.presenter = presenter
     }

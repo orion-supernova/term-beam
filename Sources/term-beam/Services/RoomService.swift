@@ -5,11 +5,11 @@ import Foundation
 /// Single Responsibility: Room management
 
 actor RoomService {
-    private let apiClient: ChatAPIClientProtocol
+    private let apiClient: any ChatAPIClientProtocol
     private let presenter: UIPresenter
-    private let input: InputReaderProtocol
+    private let input: any InputReaderProtocol
 
-    init(apiClient: ChatAPIClientProtocol, presenter: UIPresenter, input: InputReaderProtocol) {
+    init(apiClient: any ChatAPIClientProtocol, presenter: UIPresenter, input: any InputReaderProtocol) {
         self.apiClient = apiClient
         self.presenter = presenter
         self.input = input

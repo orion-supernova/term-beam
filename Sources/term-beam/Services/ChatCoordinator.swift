@@ -5,11 +5,11 @@ import Foundation
 /// Follows Single Responsibility: Application flow coordination
 
 actor ChatCoordinator {
-    private let apiClient: ChatAPIClientProtocol
+    private let apiClient: any ChatAPIClientProtocol
     private let roomService: RoomService
     private let connectionService: ConnectionService
     private let presenter: UIPresenter
-    private let input: InputReaderProtocol
+    private let input: any InputReaderProtocol
     private let config: AppConfiguration
     private let serverURL: String
     private let globalCommandHandler: GlobalCommandHandler
@@ -18,11 +18,11 @@ actor ChatCoordinator {
 
     init(
         serverURL: String,
-        apiClient: ChatAPIClientProtocol,
+        apiClient: any ChatAPIClientProtocol,
         roomService: RoomService,
         connectionService: ConnectionService,
         presenter: UIPresenter,
-        input: InputReaderProtocol,
+        input: any InputReaderProtocol,
         config: AppConfiguration
     ) {
         self.serverURL = serverURL

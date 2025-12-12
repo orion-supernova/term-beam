@@ -5,10 +5,10 @@ import Foundation
 /// Single Responsibility: Chat session lifecycle
 
 actor ChatSessionService {
-    private let webSocketClient: WebSocketClientProtocol
+    private let webSocketClient: any WebSocketClientProtocol
     private let roomService: RoomService
     private let presenter: UIPresenter
-    private let input: InputReaderProtocol
+    private let input: any InputReaderProtocol
     private let globalCommandHandler: GlobalCommandHandler
 
     private let roomId: String
@@ -20,10 +20,10 @@ actor ChatSessionService {
     private var isActive = true
 
     init(
-        webSocketClient: WebSocketClientProtocol,
+        webSocketClient: any WebSocketClientProtocol,
         roomService: RoomService,
         presenter: UIPresenter,
-        input: InputReaderProtocol,
+        input: any InputReaderProtocol,
         globalCommandHandler: GlobalCommandHandler,
         roomId: String,
         userId: String,
