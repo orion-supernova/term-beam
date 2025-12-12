@@ -20,9 +20,10 @@ actor UIPresenter {
     }
 
     func showServerPrompt() async {
-        await output.writeLine("Enter the chat server address (or press Enter for localhost:8080):")
+        await output.writeLine("Enter the chat server address (or press Enter for default):")
         await output.writeLine("  Examples:")
-        await output.writeLine("    • localhost:8080 or just press Enter")
+        await output.writeLine("    • shell-star-production.up.railway.app (press Enter)")
+        await output.writeLine("    • localhost:8080")
         await output.writeLine("    • 192.168.1.100:8080")
         await output.writeLine("    • chat.example.com")
         await output.writeLine("")

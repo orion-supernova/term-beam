@@ -14,7 +14,7 @@ swift run ChatClient
 
 Or with options:
 ```bash
-swift run ChatClient --server localhost:8080 --username alice
+swift run term-beam --server localhost:8080
 ```
 
 ### 3. Install globally (optional)
@@ -49,21 +49,21 @@ swift build -c release
 
 ### Interactive Mode (Recommended)
 ```bash
-swift run ChatClient
+swift run term-beam
 ```
 You'll be prompted for:
-1. Server URL (default: localhost:8080)
+1. Server URL (default: shell-star-production.up.railway.app)
 2. Room selection (create or join)
 3. Room details (ID/name and password)
 4. Username for the selected room
 
 ### With Command-Line Arguments
 ```bash
-# Specify server
-swift run ChatClient --server chat.example.com
+# Specify custom server
+swift run term-beam --server chat.example.com
 
-# Short option
-swift run ChatClient -s localhost:8080
+# Connect to localhost
+swift run term-beam -s localhost:8080
 ```
 
 **Note**: Username is now requested during the interactive flow for better room-specific context.
@@ -196,26 +196,28 @@ If you encounter issues:
 2. Review error messages
 3. Check server logs
 4. Verify network connectivity
-5. Try with default server (localhost:8080)
+5. Try with default server (shell-star-production.up.railway.app) or localhost
 
 ## Example Session
 
 ```bash
-$ swift run ChatClient
+$ swift run term-beam
 ╔════════════════════════════════════════╗
-║      Terminal Chat Client v1.0        ║
+║          term-beam v1.0               ║
+║   Beam messages across the network    ║
 ╚════════════════════════════════════════╝
 
-Enter the chat server address (or press Enter for localhost:8080):
+Enter the chat server address (or press Enter for default):
   Examples:
-    • localhost:8080 or just press Enter
+    • shell-star-production.up.railway.app (press Enter)
+    • localhost:8080
     • 192.168.1.100:8080
     • chat.example.com
 
-Server [localhost:8080]:
-Using default: http://localhost:8080
+Server [https://shell-star-production.up.railway.app]:
+Using default: https://shell-star-production.up.railway.app
 
-🌐 Connecting to: http://localhost:8080
+🌐 Connecting to: https://shell-star-production.up.railway.app
 🔍 Checking server connection...
 ✅ Server is online
 

@@ -81,6 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Set version
         id: version
@@ -130,8 +131,34 @@ jobs:
 
             ### Usage
             ```bash
+            # Use default server (shell-star-production.up.railway.app)
             term-beam
-            term-beam --server your-server.com:3169
+
+            # Connect to custom server
+            term-beam --server your-server.com
+            term-beam --server localhost:8080
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew tap
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: term-beam
+          formula-path: Formula/term-beam.rb
+          homebrew-tap: orion-supernova/homebrew-tap
+          download-url: https://github.com/orion-supernova/term-beam/releases/download/v${{ steps.version.outputs.VERSION }}/term-beam-${{ steps.version.outputs.VERSION }}.tar.gz
+          commit-message: |
+            term-beam ${{ steps.version.outputs.VERSION }}
+
+            Created by https://github.com/mislav/bump-homebrew-formula-action
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
