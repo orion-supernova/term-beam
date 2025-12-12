@@ -11,7 +11,7 @@ struct AppConfiguration: Sendable {
     let maxMessageHistory: Int
 
     static let `default` = AppConfiguration(
-        defaultServerURL: "http://localhost:3169",
+        defaultServerURL: "https://shell-star-production.up.railway.app",
         maxConnectionRetries: 3,
         connectionRetryDelay: .seconds(2),
         maxMessageHistory: 100

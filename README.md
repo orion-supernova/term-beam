@@ -54,11 +54,12 @@ swift run ChatClient
 ### Quick Start
 
 ```bash
-# Run with default settings (will prompt for details)
-chat-client
+# Run with default settings (connects to shell-star-production.up.railway.app)
+term-beam
 
-# Connect to a specific server
-chat-client --server localhost:8080
+# Connect to a specific server or localhost
+term-beam --server localhost:8080
+term-beam --server your-server.com
 ```
 
 ### Command-Line Options
@@ -71,7 +72,7 @@ chat-client --server localhost:8080
 
 When you run the client, you'll be guided through:
 
-1. **Server Connection**: Enter server address or use default `localhost:8080`
+1. **Server Connection**: Enter server address or use default `shell-star-production.up.railway.app`
 2. **Room Selection**: Choose to create a new room or join an existing one
 3. **Room Details**: Enter room ID/name and password (if required)
 4. **Username**: Enter your username for the selected room
@@ -97,19 +98,21 @@ Once connected to a room, you can use these commands:
 
 ```
 ╔════════════════════════════════════════╗
-║      Terminal Chat Client v1.0        ║
+║          term-beam v1.0               ║
+║   Beam messages across the network    ║
 ╚════════════════════════════════════════╝
 
-Enter the chat server address (or press Enter for localhost:8080):
+Enter the chat server address (or press Enter for default):
   Examples:
-    • localhost:8080 or just press Enter
+    • shell-star-production.up.railway.app (press Enter)
+    • localhost:8080
     • 192.168.1.100:8080
     • chat.example.com
 
-Server [localhost:8080]:
-Using default: http://localhost:8080
+Server [https://shell-star-production.up.railway.app]:
+Using default: https://shell-star-production.up.railway.app
 
-🌐 Connecting to: http://localhost:8080
+🌐 Connecting to: https://shell-star-production.up.railway.app
 🔍 Checking server connection...
 ✅ Server is online
 
