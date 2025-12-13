@@ -11,7 +11,6 @@ actor ConsoleInputReader: InputReaderProtocol {
         // Use Task.detached to avoid actor isolation issues with synchronous I/O
         let result = await Task.detached {
             print(prompt, terminator: "")
-            fflush(stdout)
 
             // Read directly from stdin synchronously
             guard let line = Swift.readLine() else {
@@ -43,13 +42,11 @@ actor ConsoleInputReader: InputReaderProtocol {
     private func performClearLine() {
         // Clear current line: move cursor to beginning, clear to end of line
         print("\r\u{001B}[K", terminator: "")
-        fflush(stdout)
     }
 
     private func performRedrawPrompt() {
         if !currentPrompt.isEmpty {
             print(currentPrompt, terminator: "")
-            fflush(stdout)
         }
     }
 
@@ -62,15 +59,22 @@ actor ConsoleInputReader: InputReaderProtocol {
     }
 
     func readSecureLine(prompt: String) async -> String {
-        await Task.detached {
+        return await Task.detached {
             print(prompt, terminator: "")
-            fflush(stdout)
 
+            #if os(Linux)
+            // On Linux, use getpass or fallback to regular input
+            guard let line = Swift.readLine() else {
+                return ""
+            }
+            return line
+            #else
             var buf = [Int8](repeating: 0, count: 8192)
             guard let ptr = readpassphrase("", &buf, buf.count, 0) else {
                 return ""
             }
             return String(cString: ptr)
+            #endif
         }.value
     }
 }

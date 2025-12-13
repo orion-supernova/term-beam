@@ -1,2 +1,13 @@
+# Build artifacts
+.build/
+.swiftpm/
 
-.swiftpm/xcode/package.xcworkspace/xcuserdata/muratcankoc.xcuserdatad/UserInterfaceState.xcuserstate
+# Xcode user data
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+Package.resolved
