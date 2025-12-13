@@ -7,7 +7,7 @@ import NIOPosix
 
 actor WebSocketClient: WebSocketClientProtocol {
     private let serverURL: String
-    private let eventLoopGroup: EventLoopGroup
+    private let eventLoopGroup: any EventLoopGroup
     private var webSocket: WebSocket?
     private var _isConnected: Bool = false
 
@@ -24,7 +24,7 @@ actor WebSocketClient: WebSocketClientProtocol {
         get async { _isConnected }
     }
 
-    init(serverURL: String, eventLoopGroup: EventLoopGroup? = nil) {
+    init(serverURL: String, eventLoopGroup: (any EventLoopGroup)? = nil) {
         self.serverURL = serverURL
         self.eventLoopGroup = eventLoopGroup ?? MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
@@ -62,11 +62,13 @@ actor WebSocketClient: WebSocketClientProtocol {
 
         do {
             try await WebSocket.connect(to: fullURL, on: eventLoopGroup) { ws in
-                self.handleConnection(
-                    ws: ws,
-                    onMessage: onMessage,
-                    onDisconnect: onDisconnect
-                )
+                Task {
+                    await self.handleConnection(
+                        ws: ws,
+                        onMessage: onMessage,
+                        onDisconnect: onDisconnect
+                    )
+                }
             }.get()
         } catch {
             throw ChatError.webSocketError("Failed to connect: \(error.localizedDescription)")
@@ -104,10 +106,8 @@ actor WebSocketClient: WebSocketClientProtocol {
         ws: WebSocket,
         onMessage: @escaping @Sendable (Message) -> Void,
         onDisconnect: @escaping @Sendable () -> Void
-    ) {
-        Task {
-            await setWebSocket(ws)
-        }
+    ) async {
+        await setWebSocket(ws)
 
         ws.onText { _, text in
             // Ignore ping messages from server heartbeat

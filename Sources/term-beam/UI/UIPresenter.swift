@@ -5,9 +5,9 @@ import Foundation
 /// Follows Single Responsibility Principle
 
 actor UIPresenter {
-    private let output: OutputWriterProtocol
+    private let output: any OutputWriterProtocol
 
-    init(output: OutputWriterProtocol) {
+    init(output: any OutputWriterProtocol) {
         self.output = output
     }
 

@@ -114,7 +114,7 @@ struct TermBeamApp: AsyncParsableCommand {
     // MARK: - Private Helpers
 
     private func getServerURL(
-        input: InputReaderProtocol,
+        input: any InputReaderProtocol,
         presenter: UIPresenter,
         config: AppConfiguration
     ) async throws -> String {
@@ -135,7 +135,7 @@ struct TermBeamApp: AsyncParsableCommand {
 
     private func connectToServer(
         initialURL: String,
-        input: InputReaderProtocol,
+        input: any InputReaderProtocol,
         presenter: UIPresenter,
         config: AppConfiguration
     ) async throws -> String {
