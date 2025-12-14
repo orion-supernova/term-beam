@@ -86,7 +86,13 @@ actor WebSocketClient: WebSocketClientProtocol {
             throw ChatError.webSocketError("Failed to encode message")
         }
 
-        try await ws.send(json)
+        do {
+            try await ws.send(json)
+        } catch {
+            // Mark as disconnected if send fails
+            _isConnected = false
+            throw ChatError.webSocketError("Failed to send message: \(error.localizedDescription)")
+        }
     }
 
     func disconnect() async {
@@ -158,7 +164,10 @@ actor WebSocketClient: WebSocketClientProtocol {
         print("⚠️  Connection lost. Reconnecting... (attempt \(reconnectAttempts)/\(maxReconnectAttempts))")
 
         do {
-            try await Task.sleep(for: .seconds(2)) // Wait before reconnecting
+            // Exponential backoff: 2s, 4s, 6s
+            let backoffSeconds = min(reconnectAttempts * 2, 10)
+            try await Task.sleep(for: .seconds(backoffSeconds))
+
             try await attemptConnection(
                 roomId: roomId,
                 userId: userId,

@@ -18,4 +18,29 @@ extension String {
     var isLocalhost: Bool {
         contains("localhost") || contains("127.0.0.1")
     }
+
+    /// Validates and sanitizes username input
+    var isValidUsername: Bool {
+        let trimmed = self.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed.count >= 2, trimmed.count <= 50 else {
+            return false
+        }
+        // Allow alphanumeric, spaces, dashes, underscores
+        let validCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " -_"))
+        return trimmed.unicodeScalars.allSatisfy { validCharacters.contains($0) }
+    }
+
+    /// Validates room name
+    var isValidRoomName: Bool {
+        let trimmed = self.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed.count >= 2, trimmed.count <= 100 else {
+            return false
+        }
+        return true
+    }
+
+    /// Sanitize message content
+    func sanitized() -> String {
+        self.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }

@@ -71,10 +71,19 @@ actor ConsoleInputReader: InputReaderProtocol {
             // Pass the prompt directly to readpassphrase instead of printing separately
             // This prevents SIGTRAP issues and ensures the prompt is visible on all terminals
             var buf = [Int8](repeating: 0, count: 8192)
-            guard let ptr = readpassphrase(prompt, &buf, buf.count, 0) else {
+
+            // Try readpassphrase first (preferred method for password input)
+            if let ptr = readpassphrase(prompt, &buf, buf.count, 0) {
+                return String(cString: ptr)
+            }
+
+            // Fallback: If readpassphrase fails, use regular input with warning
+            print("\n⚠️  Secure input unavailable, using regular input")
+            print(prompt, terminator: "")
+            guard let line = Swift.readLine() else {
                 return ""
             }
-            return String(cString: ptr)
+            return line
             #endif
         }.value
     }

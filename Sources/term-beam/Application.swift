@@ -29,15 +29,6 @@ private func setupGlobalSignalHandler() {
             Foundation.exit(0)
         }
     }
-
-    // Handle SIGTRAP to prevent crashes during terminal I/O operations
-    signal(SIGTRAP) { _ in
-        print("\n⚠️  Received trace trap signal, cleaning up...")
-        Task {
-            await GlobalCleanupHandler.shared.cleanup()
-            Foundation.exit(1)
-        }
-    }
 }
 
 // MARK: - Main Application Entry Point
