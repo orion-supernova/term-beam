@@ -74,14 +74,15 @@ actor WebSocketClient: WebSocketClientProtocol {
         }
     }
 
-    private func handleConnectionSync(
+    nonisolated private func handleConnectionSync(
         ws: WebSocket,
         onMessage: @escaping @Sendable (Message) -> Void,
         onDisconnect: @escaping @Sendable () -> Void
     ) {
-        // Store WebSocket immediately
-        webSocket = ws
-        _isConnected = true
+        // Store WebSocket using async task
+        Task {
+            await self.setWebSocket(ws)
+        }
 
         ws.onText { _, text in
             // Ignore ping messages from server heartbeat
@@ -92,18 +93,27 @@ actor WebSocketClient: WebSocketClientProtocol {
         }
 
         ws.onClose.whenComplete { _ in
-            self._isConnected = false
-            self.webSocket = nil
-
-            // Attempt reconnection if enabled and not at max attempts
-            if self.shouldReconnect && self.reconnectAttempts < self.maxReconnectAttempts {
-                Task {
-                    await self.attemptReconnection()
-                }
-            } else {
-                // Give up and notify disconnect
-                onDisconnect()
+            Task {
+                await self.handleDisconnection(onDisconnect: onDisconnect)
             }
+        }
+    }
+
+    private func setWebSocket(_ ws: WebSocket) {
+        webSocket = ws
+        _isConnected = true
+    }
+
+    private func handleDisconnection(onDisconnect: @escaping @Sendable () -> Void) async {
+        _isConnected = false
+        webSocket = nil
+
+        // Attempt reconnection if enabled and not at max attempts
+        if shouldReconnect && reconnectAttempts < maxReconnectAttempts {
+            await attemptReconnection()
+        } else {
+            // Give up and notify disconnect
+            onDisconnect()
         }
     }
 
@@ -191,6 +201,6 @@ actor WebSocketClient: WebSocketClientProtocol {
     }
 
     deinit {
-        webSocket?.close(code: .normalClosure)
+        _ = webSocket?.close(code: .normalClosure)
     }
 }
