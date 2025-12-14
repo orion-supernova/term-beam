@@ -60,17 +60,18 @@ actor ConsoleInputReader: InputReaderProtocol {
 
     func readSecureLine(prompt: String) async -> String {
         return await Task.detached {
-            print(prompt, terminator: "")
-
             #if os(Linux)
+            print(prompt, terminator: "")
             // On Linux, use getpass or fallback to regular input
             guard let line = Swift.readLine() else {
                 return ""
             }
             return line
             #else
+            // Pass the prompt directly to readpassphrase instead of printing separately
+            // This prevents SIGTRAP issues and ensures the prompt is visible on all terminals
             var buf = [Int8](repeating: 0, count: 8192)
-            guard let ptr = readpassphrase("", &buf, buf.count, 0) else {
+            guard let ptr = readpassphrase(prompt, &buf, buf.count, 0) else {
                 return ""
             }
             return String(cString: ptr)
