@@ -62,16 +62,48 @@ actor WebSocketClient: WebSocketClientProtocol {
 
         do {
             try await WebSocket.connect(to: fullURL, on: eventLoopGroup) { ws in
-                Task {
-                    await self.handleConnection(
-                        ws: ws,
-                        onMessage: onMessage,
-                        onDisconnect: onDisconnect
-                    )
-                }
+                // Handle connection synchronously on the event loop
+                self.handleConnectionSync(
+                    ws: ws,
+                    onMessage: onMessage,
+                    onDisconnect: onDisconnect
+                )
             }.get()
         } catch {
             throw ChatError.webSocketError("Failed to connect: \(error.localizedDescription)")
+        }
+    }
+
+    private func handleConnectionSync(
+        ws: WebSocket,
+        onMessage: @escaping @Sendable (Message) -> Void,
+        onDisconnect: @escaping @Sendable () -> Void
+    ) {
+        // Store WebSocket immediately
+        webSocket = ws
+        _isConnected = true
+
+        ws.onText { _, text in
+            // Ignore ping messages from server heartbeat
+            if text == "ping" {
+                return
+            }
+            Self.parseAndHandleMessage(text: text, onMessage: onMessage)
+        }
+
+        ws.onClose.whenComplete { _ in
+            self._isConnected = false
+            self.webSocket = nil
+
+            // Attempt reconnection if enabled and not at max attempts
+            if self.shouldReconnect && self.reconnectAttempts < self.maxReconnectAttempts {
+                Task {
+                    await self.attemptReconnection()
+                }
+            } else {
+                // Give up and notify disconnect
+                onDisconnect()
+            }
         }
     }
 
@@ -107,50 +139,6 @@ actor WebSocketClient: WebSocketClientProtocol {
     }
 
     // MARK: - Private Helpers
-
-    private func handleConnection(
-        ws: WebSocket,
-        onMessage: @escaping @Sendable (Message) -> Void,
-        onDisconnect: @escaping @Sendable () -> Void
-    ) async {
-        await setWebSocket(ws)
-
-        ws.onText { _, text in
-            // Ignore ping messages from server heartbeat
-            if text == "ping" {
-                return
-            }
-            Self.parseAndHandleMessage(text: text, onMessage: onMessage)
-        }
-
-        ws.onClose.whenComplete { _ in
-            Task {
-                await self.handleDisconnection()
-
-                // Attempt reconnection if enabled and not at max attempts
-                let shouldReconnect = await self.shouldReconnect
-                let reconnectAttempts = await self.reconnectAttempts
-                let maxAttempts = await self.maxReconnectAttempts
-
-                if shouldReconnect && reconnectAttempts < maxAttempts {
-                    await self.attemptReconnection()
-                } else {
-                    // Give up and notify disconnect
-                    onDisconnect()
-                }
-            }
-        }
-    }
-
-    private func setWebSocket(_ ws: WebSocket) {
-        self.webSocket = ws
-        self._isConnected = true
-    }
-
-    private func handleDisconnection() {
-        self._isConnected = false
-        self.webSocket = nil
-    }
 
     private func attemptReconnection() async {
         guard let roomId = currentRoomId,

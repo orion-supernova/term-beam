@@ -5,86 +5,45 @@ import Foundation
 actor ConsoleInputReader: InputReaderProtocol {
     private var currentPrompt: String = ""
 
-    func readLine(prompt: String) async -> String {
-        await setCurrentPrompt(prompt)
-
-        // Use Task.detached to avoid actor isolation issues with synchronous I/O
-        let result = await Task.detached {
-            print(prompt, terminator: "")
-
-            // Read directly from stdin synchronously
-            guard let line = Swift.readLine() else {
-                return ""
-            }
-            return line
-        }.value
-
-        await clearCurrentPrompt()
-        return result
+    // nonisolated because it performs BLOCKING I/O - must not block the actor
+    nonisolated func readLine(prompt: String) async -> String {
+        print(prompt, terminator: "")
+        return Swift.readLine() ?? ""
     }
 
-    nonisolated func getCurrentPrompt() async -> String {
-        await getPrompt()
+    // Actor-isolated - safe to access currentPrompt
+    func getCurrentPrompt() async -> String {
+        return currentPrompt
     }
 
+    // nonisolated because it's just printing - no actor state needed
     nonisolated func clearLine() async {
-        await performClearLine()
-    }
-
-    nonisolated func redrawPrompt() async {
-        await performRedrawPrompt()
-    }
-
-    private func getPrompt() -> String {
-        currentPrompt
-    }
-
-    private func performClearLine() {
-        // Clear current line: move cursor to beginning, clear to end of line
         print("\r\u{001B}[K", terminator: "")
     }
 
-    private func performRedrawPrompt() {
-        if !currentPrompt.isEmpty {
-            print(currentPrompt, terminator: "")
+    // Actor-isolated - needs to read currentPrompt safely
+    func redrawPrompt() async {
+        let prompt = currentPrompt
+        if !prompt.isEmpty {
+            print(prompt, terminator: "")
         }
     }
 
-    private func setCurrentPrompt(_ prompt: String) {
-        currentPrompt = prompt
-    }
+    // nonisolated because it performs BLOCKING I/O - must not block the actor
+    nonisolated func readSecureLine(prompt: String) async -> String {
+        #if os(Linux)
+        print(prompt, terminator: "")
+        return Swift.readLine() ?? ""
+        #else
+        var buf = [Int8](repeating: 0, count: 8192)
 
-    private func clearCurrentPrompt() {
-        currentPrompt = ""
-    }
+        if let ptr = readpassphrase(prompt, &buf, buf.count, 0) {
+            return String(cString: ptr)
+        }
 
-    func readSecureLine(prompt: String) async -> String {
-        return await Task.detached {
-            #if os(Linux)
-            print(prompt, terminator: "")
-            // On Linux, use getpass or fallback to regular input
-            guard let line = Swift.readLine() else {
-                return ""
-            }
-            return line
-            #else
-            // Pass the prompt directly to readpassphrase instead of printing separately
-            // This prevents SIGTRAP issues and ensures the prompt is visible on all terminals
-            var buf = [Int8](repeating: 0, count: 8192)
-
-            // Try readpassphrase first (preferred method for password input)
-            if let ptr = readpassphrase(prompt, &buf, buf.count, 0) {
-                return String(cString: ptr)
-            }
-
-            // Fallback: If readpassphrase fails, use regular input with warning
-            print("\n⚠️  Secure input unavailable, using regular input")
-            print(prompt, terminator: "")
-            guard let line = Swift.readLine() else {
-                return ""
-            }
-            return line
-            #endif
-        }.value
+        print("\n⚠️  Secure input unavailable, using regular input")
+        print(prompt, terminator: "")
+        return Swift.readLine() ?? ""
+        #endif
     }
 }
